@@ -132,6 +132,26 @@
     outline-offset:-1px;
     background:#fff;
   }
+  .field select{
+    width:100%;
+    padding:7px 9px;
+    border:1px solid var(--border);
+    border-radius:7px;
+    font-size:13px;
+    font-family:inherit;
+    color:var(--text);
+    background:var(--bg);
+  }
+  .field select:focus{
+    outline:2px solid var(--accent);
+    outline-offset:-1px;
+    background:#fff;
+  }
+  .field .hint{
+    font-size:11px;
+    color:var(--muted);
+    margin-top:4px;
+  }
   .grid2{
     display:grid;
     grid-template-columns:1fr 1fr;
@@ -341,6 +361,15 @@
 <div class="layout">
   <div class="sidebar">
     <div class="panel">
+      <h2>템플릿으로 시작하기</h2>
+      <div class="field">
+        <label for="templateSelect">자주 쓰는 2x2 프레임워크</label>
+        <select id="templateSelect"></select>
+        <div class="hint">선택하면 축 라벨·사분면·예시 항목이 바로 채워집니다. (현재 내용은 대체됩니다)</div>
+      </div>
+    </div>
+
+    <div class="panel">
       <h2>축 라벨</h2>
       <div class="field">
         <label for="axisXName">가로축(X) 이름</label>
@@ -435,26 +464,253 @@
 (function(){
   const STORAGE_KEY = '2x2matrix-builder-state-v1';
 
-  const defaultState = {
-    title: '아이젠하워 매트릭스',
-    axisX: { name: '긴급도', left: '긴급하지 않음', right: '긴급함' },
-    axisY: { name: '중요도', top: '중요함', bottom: '중요하지 않음' },
-    quadrants: {
-      tl: { text: '계획하기', color: '#fde68a' },
-      tr: { text: '바로 하기', color: '#fca5a5' },
-      bl: { text: '제거하기', color: '#d1d5db' },
-      br: { text: '위임하기', color: '#93c5fd' }
-    },
-    items: [
-      { id: id(), text: '분기 보고서 작성', color: '#4f46e5', x: 68, y: 30 },
-      { id: id(), text: '동료 도와주기',   color: '#059669', x: 32, y: 28 },
-      { id: id(), text: 'SNS 확인',        color: '#9ca3af', x: 30, y: 72 },
-      { id: id(), text: '메일 회신',       color: '#f59e0b', x: 70, y: 74 }
-    ]
-  };
-
   function id(){ return 'i' + Math.random().toString(36).slice(2, 10); }
 
+  // Preset 2x2 frameworks. Each `data` is a state without item ids —
+  // materializeTemplate() fills those in fresh on apply.
+  const TEMPLATES = [
+    {
+      key: 'eisenhower', category: '업무/생산성',
+      label: '아이젠하워 매트릭스 (긴급도 × 중요도)',
+      data: {
+        title: '아이젠하워 매트릭스',
+        axisX: { name: '긴급도', left: '긴급하지 않음', right: '긴급함' },
+        axisY: { name: '중요도', top: '중요함', bottom: '중요하지 않음' },
+        quadrants: {
+          tl: { text: '계획하기', color: '#fde68a' },
+          tr: { text: '바로 하기', color: '#fca5a5' },
+          bl: { text: '제거하기', color: '#d1d5db' },
+          br: { text: '위임하기', color: '#93c5fd' }
+        },
+        items: [
+          { text: '분기 보고서 작성', color: '#4f46e5', x: 68, y: 30 },
+          { text: '동료 도와주기',   color: '#059669', x: 32, y: 28 },
+          { text: 'SNS 확인',        color: '#9ca3af', x: 30, y: 72 },
+          { text: '메일 회신',       color: '#f59e0b', x: 70, y: 74 }
+        ]
+      }
+    },
+    {
+      key: 'effort-impact', category: '업무/생산성',
+      label: '노력-효과 매트릭스 (실행 노력 × 기대 효과)',
+      data: {
+        title: '노력-효과 매트릭스',
+        axisX: { name: '실행 노력', left: '적음', right: '큼' },
+        axisY: { name: '기대 효과', top: '큼', bottom: '작음' },
+        quadrants: {
+          tl: { text: '바로 실행', color: '#86efac' },
+          tr: { text: '전략적 투자', color: '#93c5fd' },
+          bl: { text: '여유 시 실행', color: '#fde68a' },
+          br: { text: '하지 않기', color: '#fca5a5' }
+        },
+        items: [
+          { text: '랜딩페이지 문구 수정',   color: '#059669', x: 25, y: 25 },
+          { text: '신규 결제 시스템 구축', color: '#2563eb', x: 75, y: 22 },
+          { text: '아이콘 색상 변경',      color: '#ca8a04', x: 22, y: 78 },
+          { text: '레거시 전면 재작성',    color: '#dc2626', x: 78, y: 78 }
+        ]
+      }
+    },
+    {
+      key: 'delegation', category: '업무/생산성',
+      label: '위임 매트릭스 (내 역량 × 업무 중요도)',
+      data: {
+        title: '위임 매트릭스',
+        axisX: { name: '내 역량', left: '낮음', right: '높음' },
+        axisY: { name: '업무 중요도', top: '높음', bottom: '낮음' },
+        quadrants: {
+          tl: { text: '코칭하며 맡길 일', color: '#fde68a' },
+          tr: { text: '직접 할 일', color: '#fca5a5' },
+          bl: { text: '자동화할 일', color: '#d1d5db' },
+          br: { text: '위임할 일', color: '#93c5fd' }
+        },
+        items: [
+          { text: '핵심 고객 협상',   color: '#dc2626', x: 78, y: 25 },
+          { text: '신입 팀원 온보딩', color: '#ca8a04', x: 25, y: 28 },
+          { text: '반복 정산 업무',   color: '#4b5563', x: 24, y: 75 },
+          { text: '주간 보고서 작성', color: '#2563eb', x: 76, y: 78 }
+        ]
+      }
+    },
+    {
+      key: 'bcg', category: '전략/기획',
+      label: 'BCG 매트릭스 (시장 점유율 × 시장 성장률)',
+      data: {
+        title: 'BCG 매트릭스',
+        axisX: { name: '시장 점유율', left: '낮음', right: '높음' },
+        axisY: { name: '시장 성장률', top: '높음', bottom: '낮음' },
+        quadrants: {
+          tl: { text: '물음표', color: '#fde68a' },
+          tr: { text: '스타', color: '#86efac' },
+          bl: { text: '개', color: '#d1d5db' },
+          br: { text: '캐시카우', color: '#93c5fd' }
+        },
+        items: [
+          { text: '신규 구독 서비스',   color: '#ca8a04', x: 25, y: 25 },
+          { text: '주력 제품 A',        color: '#059669', x: 78, y: 22 },
+          { text: '단종 예정 제품',     color: '#6b7280', x: 22, y: 78 },
+          { text: '안정적 스테디셀러', color: '#2563eb', x: 78, y: 76 }
+        ]
+      }
+    },
+    {
+      key: 'ansoff', category: '전략/기획',
+      label: 'Ansoff 매트릭스 (제품 × 시장)',
+      data: {
+        title: 'Ansoff 매트릭스',
+        axisX: { name: '제품', left: '기존 제품', right: '신규 제품' },
+        axisY: { name: '시장', top: '신규 시장', bottom: '기존 시장' },
+        quadrants: {
+          tl: { text: '시장개발', color: '#93c5fd' },
+          tr: { text: '다각화', color: '#fca5a5' },
+          bl: { text: '시장침투', color: '#86efac' },
+          br: { text: '제품개발', color: '#fde68a' }
+        },
+        items: [
+          { text: '해외 진출',     color: '#2563eb', x: 25, y: 25 },
+          { text: '신사업 런칭',   color: '#dc2626', x: 78, y: 22 },
+          { text: '프로모션 강화', color: '#059669', x: 24, y: 78 },
+          { text: '신제품 출시',   color: '#ca8a04', x: 78, y: 76 }
+        ]
+      }
+    },
+    {
+      key: 'tows', category: '전략/기획',
+      label: 'TOWS 매트릭스 (강점·약점 × 기회·위협)',
+      data: {
+        title: 'TOWS 매트릭스',
+        axisX: { name: '내부 역량', left: '약점', right: '강점' },
+        axisY: { name: '외부 환경', top: '기회', bottom: '위협' },
+        quadrants: {
+          tl: { text: 'WO전략 (약점 보완)', color: '#fde68a' },
+          tr: { text: 'SO전략 (공격적 확대)', color: '#86efac' },
+          bl: { text: 'WT전략 (방어·철수)', color: '#d1d5db' },
+          br: { text: 'ST전략 (강점으로 방어)', color: '#93c5fd' }
+        },
+        items: [
+          { text: '인재 확충 필요',     color: '#ca8a04', x: 25, y: 25 },
+          { text: '브랜드 신뢰도 활용', color: '#059669', x: 78, y: 22 },
+          { text: '현금 흐름 악화',     color: '#6b7280', x: 24, y: 78 },
+          { text: '기술 경쟁력 방어',   color: '#2563eb', x: 78, y: 76 }
+        ]
+      }
+    },
+    {
+      key: 'value-feasibility', category: '아이디어 평가',
+      label: '가치-실현가능성 매트릭스 (사용자 가치 × 구현 용이성)',
+      data: {
+        title: '가치-실현가능성 매트릭스',
+        axisX: { name: '구현 용이성', left: '어려움', right: '쉬움' },
+        axisY: { name: '사용자 가치', top: '높음', bottom: '낮음' },
+        quadrants: {
+          tl: { text: '전략적 과제', color: '#93c5fd' },
+          tr: { text: '우선 실행', color: '#86efac' },
+          bl: { text: '재검토', color: '#fca5a5' },
+          br: { text: '여유 시 진행', color: '#fde68a' }
+        },
+        items: [
+          { text: 'AI 추천 기능',        color: '#2563eb', x: 25, y: 22 },
+          { text: '검색 UX 개선',        color: '#059669', x: 78, y: 25 },
+          { text: '과도한 커스터마이징', color: '#dc2626', x: 24, y: 78 },
+          { text: '다크 모드',           color: '#ca8a04', x: 78, y: 76 }
+        ]
+      }
+    },
+    {
+      key: 'cost-value', category: '아이디어 평가',
+      label: '비용-가치 매트릭스 (백로그 우선순위)',
+      data: {
+        title: '비용-가치 매트릭스',
+        axisX: { name: '비용', left: '낮음', right: '높음' },
+        axisY: { name: '가치', top: '높음', bottom: '낮음' },
+        quadrants: {
+          tl: { text: '최우선 순위', color: '#86efac' },
+          tr: { text: '주요 프로젝트', color: '#93c5fd' },
+          bl: { text: '보류', color: '#fde68a' },
+          br: { text: '하지 않기', color: '#fca5a5' }
+        },
+        items: [
+          { text: '버그 수정',         color: '#059669', x: 22, y: 25 },
+          { text: '신규 플랫폼 구축', color: '#2563eb', x: 78, y: 22 },
+          { text: '부가 기능 실험',   color: '#ca8a04', x: 24, y: 78 },
+          { text: '대규모 재설계',     color: '#dc2626', x: 78, y: 76 }
+        ]
+      }
+    },
+    {
+      key: 'mood', category: '개인 성찰/의사결정',
+      label: '감정-에너지 매트릭스 (감정 체크인)',
+      data: {
+        title: '감정-에너지 매트릭스',
+        axisX: { name: '감정 상태', left: '부정적', right: '긍정적' },
+        axisY: { name: '에너지 수준', top: '높음', bottom: '낮음' },
+        quadrants: {
+          tl: { text: '불안·스트레스', color: '#fca5a5' },
+          tr: { text: '신남·열정', color: '#fde68a' },
+          bl: { text: '우울·무기력', color: '#93c5fd' },
+          br: { text: '평온·안정', color: '#86efac' }
+        },
+        items: [
+          { text: '마감 압박감',       color: '#dc2626', x: 25, y: 22 },
+          { text: '새 프로젝트 기대감', color: '#ca8a04', x: 78, y: 25 },
+          { text: '번아웃 느낌',       color: '#2563eb', x: 24, y: 78 },
+          { text: '주말 산책',         color: '#059669', x: 78, y: 76 }
+        ]
+      }
+    },
+    {
+      key: 'stakeholder', category: '개인 성찰/의사결정',
+      label: '관심-영향력 매트릭스 (이해관계자 분석)',
+      data: {
+        title: '관심-영향력 매트릭스',
+        axisX: { name: '관심도', left: '낮음', right: '높음' },
+        axisY: { name: '영향력', top: '높음', bottom: '낮음' },
+        quadrants: {
+          tl: { text: '만족 유지', color: '#93c5fd' },
+          tr: { text: '긴밀히 관리', color: '#fca5a5' },
+          bl: { text: '최소 관리', color: '#d1d5db' },
+          br: { text: '정보 제공', color: '#fde68a' }
+        },
+        items: [
+          { text: '경영진',     color: '#2563eb', x: 25, y: 22 },
+          { text: '핵심 고객사', color: '#dc2626', x: 78, y: 22 },
+          { text: '일반 방문자', color: '#6b7280', x: 24, y: 78 },
+          { text: '현업 실무자', color: '#ca8a04', x: 78, y: 76 }
+        ]
+      }
+    },
+    {
+      key: 'skill-priority', category: '학습/역량 개발',
+      label: '숙련도-중요도 매트릭스 (디지털 역량 자가진단)',
+      data: {
+        title: '숙련도-중요도 매트릭스',
+        axisX: { name: '현재 역량 수준', left: '낮음', right: '높음' },
+        axisY: { name: '업무상 중요도', top: '높음', bottom: '낮음' },
+        quadrants: {
+          tl: { text: '학습 우선순위', color: '#fca5a5' },
+          tr: { text: '강점 유지', color: '#86efac' },
+          bl: { text: '여유 시 학습', color: '#d1d5db' },
+          br: { text: '현상 유지', color: '#93c5fd' }
+        },
+        items: [
+          { text: '데이터 분석 도구 활용', color: '#dc2626', x: 24, y: 22 },
+          { text: '문서 작성 도구',        color: '#059669', x: 76, y: 25 },
+          { text: '영상 편집',             color: '#6b7280', x: 22, y: 78 },
+          { text: '이메일·일정 관리',      color: '#2563eb', x: 78, y: 76 }
+        ]
+      }
+    }
+  ];
+
+  function materializeTemplate(tpl){
+    const clone = JSON.parse(JSON.stringify(tpl.data));
+    clone.items = clone.items.map(function(it){
+      return Object.assign({ id: id() }, it);
+    });
+    return clone;
+  }
+
+  let loadedFromDefault = false;
   let state = loadState();
 
   function loadState(){
@@ -467,7 +723,8 @@
         }
       }
     }catch(e){ /* ignore corrupt storage */ }
-    return JSON.parse(JSON.stringify(defaultState));
+    loadedFromDefault = true;
+    return materializeTemplate(TEMPLATES[0]);
   }
 
   function saveState(){
@@ -511,6 +768,40 @@
   const emptyHint = document.getElementById('emptyHint');
   const newItemText = document.getElementById('newItemText');
   const newItemColor = document.getElementById('newItemColor');
+  const templateSelect = document.getElementById('templateSelect');
+
+  (function populateTemplateSelect(){
+    const groups = {};
+    const order = [];
+    templateSelect.innerHTML = '<option value="">템플릿 선택...</option>';
+    TEMPLATES.forEach(function(tpl){
+      if(!groups[tpl.category]){
+        groups[tpl.category] = document.createElement('optgroup');
+        groups[tpl.category].label = tpl.category;
+        order.push(tpl.category);
+      }
+      const opt = document.createElement('option');
+      opt.value = tpl.key;
+      opt.textContent = tpl.label;
+      groups[tpl.category].appendChild(opt);
+    });
+    order.forEach(function(cat){ templateSelect.appendChild(groups[cat]); });
+  })();
+
+  templateSelect.addEventListener('change', function(){
+    const key = templateSelect.value;
+    if(!key){ return; }
+    const tpl = TEMPLATES.find(function(t){ return t.key === key; });
+    if(!tpl) return;
+    const ok = confirm('"' + tpl.label + '" 템플릿을 적용할까요?\n현재 매트릭스 내용은 대체됩니다.');
+    if(!ok){
+      templateSelect.value = '';
+      return;
+    }
+    state = materializeTemplate(tpl);
+    render();
+    saveState();
+  });
 
   function render(){
     titleInput.value = state.title;
@@ -714,9 +1005,9 @@
 
   // --- Toolbar actions ---
   document.getElementById('btnReset').addEventListener('click', function(){
-    if(!confirm('모든 내용을 초기 상태로 되돌릴까요? 이 작업은 되돌릴 수 없습니다.')) return;
-    state = JSON.parse(JSON.stringify(defaultState));
-    state.items = state.items.map(function(it){ return Object.assign({}, it, { id: id() }); });
+    if(!confirm('모든 내용을 초기 상태(아이젠하워 매트릭스)로 되돌릴까요? 이 작업은 되돌릴 수 없습니다.')) return;
+    state = materializeTemplate(TEMPLATES[0]);
+    templateSelect.value = TEMPLATES[0].key;
     render();
     saveState();
   });
@@ -747,6 +1038,7 @@
         }
         parsed.items.forEach(function(it){ if(!it.id) it.id = id(); });
         state = parsed;
+        templateSelect.value = '';
         render();
         saveState();
       }catch(e){
@@ -952,6 +1244,7 @@
     });
   }
 
+  if(loadedFromDefault){ templateSelect.value = TEMPLATES[0].key; }
   render();
 })();
 </script>
