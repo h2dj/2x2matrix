@@ -5,6 +5,8 @@
 - `index.html` — 2x2 매트릭스(사분면) 빌더
 - `journal.html` — 공익활동 회고를 위한 저널링 프롬프트 캔버스
 
+`main` 브랜치에 푸시될 때마다 GitHub Actions(`.github/workflows/pages.yml`)가 저장소 전체를 GitHub Pages로 자동 배포합니다. (저장소 Settings → Pages에서 소스가 "GitHub Actions"로 설정되어 있어야 합니다.)
+
 ## 2x2 매트릭스 빌더 (`index.html`)
 
 ## 사용법
