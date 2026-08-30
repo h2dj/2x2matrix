@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2x2 매트릭스 빌더</title>
+<style>
+  :root{
+    --bg:#f4f5f7;
+    --panel:#ffffff;
+    --border:#e2e4e9;
+    --text:#1f2430;
+    --muted:#6b7280;
+    --accent:#4f46e5;
+    --accent-hover:#4338ca;
+    --danger:#e0503f;
+    --radius:10px;
+    --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    min-height:100vh;
+  }
+  header{
+    padding:16px 20px;
+    background:var(--panel);
+    border-bottom:1px solid var(--border);
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  header h1{
+    font-size:18px;
+    margin:0;
+    white-space:nowrap;
+  }
+  header .title-input{
+    flex:1;
+    min-width:160px;
+    font-size:16px;
+    font-weight:600;
+    border:1px solid transparent;
+    background:transparent;
+    padding:6px 8px;
+    border-radius:6px;
+    color:var(--text);
+  }
+  header .title-input:hover,header .title-input:focus{
+    border-color:var(--border);
+    background:var(--bg);
+    outline:none;
+  }
+  .toolbar{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  button{
+    font:inherit;
+    cursor:pointer;
+    border:1px solid var(--border);
+    background:var(--panel);
+    color:var(--text);
+    padding:7px 12px;
+    border-radius:7px;
+    font-size:13px;
+    transition:background .12s,border-color .12s;
+  }
+  button:hover{background:var(--bg);}
+  button.primary{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#fff;
+  }
+  button.primary:hover{background:var(--accent-hover);}
+  button.danger{color:var(--danger);border-color:#f2c9c2;}
+  button.danger:hover{background:#fdf1ef;}
+  button.icon{padding:6px 8px;line-height:1;}
+
+  .layout{
+    display:grid;
+    grid-template-columns:300px 1fr;
+    gap:20px;
+    padding:20px;
+    align-items:start;
+  }
+  @media (max-width:860px){
+    .layout{grid-template-columns:1fr;}
+  }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:16px;
+  }
+  .panel + .panel{margin-top:16px;}
+  .panel h2{
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--muted);
+    margin:0 0 12px;
+  }
+  .field{
+    margin-bottom:10px;
+  }
+  .field label{
+    display:block;
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:4px;
+  }
+  .field input[type=text]{
+    width:100%;
+    padding:7px 9px;
+    border:1px solid var(--border);
+    border-radius:7px;
+    font-size:13px;
+    font-family:inherit;
+    color:var(--text);
+    background:var(--bg);
+  }
+  .field input[type=text]:focus{
+    outline:2px solid var(--accent);
+    outline-offset:-1px;
+    background:#fff;
+  }
+  .grid2{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .quad-field{
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:8px;
+    margin-bottom:8px;
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .quad-field input[type=text]{flex:1;}
+  .quad-field input[type=color]{
+    width:30px;height:30px;border:none;border-radius:6px;padding:0;background:none;cursor:pointer;
+  }
+  .quad-field .tag{
+    font-size:11px;
+    color:var(--muted);
+    width:34px;
+    flex:none;
+  }
+
+  .add-item-row{
+    display:flex;
+    gap:6px;
+    align-items:center;
+  }
+  .add-item-row input[type=text]{flex:1;}
+  .add-item-row input[type=color]{
+    width:30px;height:30px;border:none;border-radius:6px;padding:0;background:none;cursor:pointer;flex:none;
+  }
+
+  .item-list{
+    list-style:none;
+    margin:12px 0 0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    max-height:260px;
+    overflow-y:auto;
+  }
+  .item-list li{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    border:1px solid var(--border);
+    border-radius:7px;
+    padding:6px 8px;
+  }
+  .item-list .swatch{
+    width:12px;height:12px;border-radius:50%;flex:none;
+  }
+  .item-list input[type=text]{
+    flex:1;
+    border:none;
+    background:transparent;
+    font-size:13px;
+    padding:2px;
+    color:var(--text);
+  }
+  .item-list input[type=text]:focus{outline:none;background:var(--bg);border-radius:4px;}
+  .item-list .del{
+    border:none;
+    background:none;
+    color:var(--muted);
+    font-size:16px;
+    padding:2px 6px;
+    line-height:1;
+  }
+  .item-list .del:hover{color:var(--danger);}
+  .empty-hint{
+    font-size:12px;
+    color:var(--muted);
+    padding:8px 0;
+  }
+
+  /* Matrix canvas */
+  .canvas-wrap{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:28px 34px 40px 34px;
+  }
+  .axis-top-label{
+    text-align:center;
+    font-size:12px;
+    font-weight:600;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  .matrix-outer{
+    display:grid;
+    grid-template-columns:34px 1fr 34px;
+    grid-template-rows:20px 1fr 20px;
+    gap:4px;
+  }
+  .lbl{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:13px;
+    font-weight:600;
+    color:var(--text);
+    text-align:center;
+    padding:2px;
+  }
+  .lbl.top{grid-column:2;grid-row:1;}
+  .lbl.bottom{grid-column:2;grid-row:3;}
+  .lbl.left{
+    grid-column:1;grid-row:2;
+    writing-mode:vertical-rl;
+    transform:rotate(180deg);
+  }
+  .lbl.right{
+    grid-column:3;grid-row:2;
+    writing-mode:vertical-rl;
+  }
+
+  #plot{
+    grid-column:2;
+    grid-row:2;
+    position:relative;
+    width:100%;
+    aspect-ratio:1 / 1;
+    border:2px solid #cfd3dc;
+    border-radius:8px;
+    overflow:hidden;
+    background:#fff;
+    touch-action:none;
+    user-select:none;
+  }
+  .quad-bg{
+    position:absolute;
+    width:50%;
+    height:50%;
+    display:flex;
+    align-items:flex-start;
+    padding:10px;
+    font-size:12px;
+    font-weight:600;
+    color:rgba(0,0,0,.55);
+    pointer-events:none;
+  }
+  .quad-bg span{max-width:100%;}
+  .quad-bg.q-tl{top:0;left:0;justify-content:flex-start;}
+  .quad-bg.q-tr{top:0;left:50%;justify-content:flex-end;text-align:right;}
+  .quad-bg.q-bl{top:50%;left:0;align-items:flex-end;}
+  .quad-bg.q-br{top:50%;left:50%;align-items:flex-end;justify-content:flex-end;text-align:right;}
+
+  .axis-line{
+    position:absolute;
+    background:#cfd3dc;
+  }
+  .axis-line.v{left:50%;top:0;bottom:0;width:1px;margin-left:-.5px;}
+  .axis-line.h{top:50%;left:0;right:0;height:1px;margin-top:-.5px;}
+
+  .item{
+    position:absolute;
+    transform:translate(-50%,-50%);
+    max-width:140px;
+    padding:6px 10px;
+    border-radius:20px;
+    font-size:12px;
+    font-weight:600;
+    color:#fff;
+    box-shadow:0 2px 6px rgba(0,0,0,.18);
+    cursor:grab;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    z-index:5;
+  }
+  .item:active{cursor:grabbing;z-index:10;}
+  .item.dragging{opacity:.85;box-shadow:0 4px 14px rgba(0,0,0,.28);}
+
+  footer{
+    text-align:center;
+    color:var(--muted);
+    font-size:12px;
+    padding:20px;
+  }
+
+  .visually-hidden{
+    position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧭 2x2 매트릭스 빌더</h1>
+  <input id="titleInput" class="title-input" type="text" value="아이젠하워 매트릭스" aria-label="매트릭스 제목">
+  <div class="toolbar">
+    <button id="btnExportPng">이미지로 저장</button>
+    <button id="btnExportJson">JSON 내보내기</button>
+    <button id="btnImportJson">JSON 가져오기</button>
+    <button id="btnReset" class="danger">초기화</button>
+    <input id="importFile" type="file" accept="application/json" class="visually-hidden">
+  </div>
+</header>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="panel">
+      <h2>축 라벨</h2>
+      <div class="field">
+        <label for="axisXName">가로축(X) 이름</label>
+        <input id="axisXName" type="text" value="긴급도">
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label for="axisXLeft">왼쪽</label>
+          <input id="axisXLeft" type="text" value="긴급하지 않음">
+        </div>
+        <div class="field">
+          <label for="axisXRight">오른쪽</label>
+          <input id="axisXRight" type="text" value="긴급함">
+        </div>
+      </div>
+      <div class="field">
+        <label for="axisYName">세로축(Y) 이름</label>
+        <input id="axisYName" type="text" value="중요도">
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label for="axisYTop">위쪽</label>
+          <input id="axisYTop" type="text" value="중요함">
+        </div>
+        <div class="field">
+          <label for="axisYBottom">아래쪽</label>
+          <input id="axisYBottom" type="text" value="중요하지 않음">
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>사분면</h2>
+      <div class="quad-field">
+        <span class="tag">좌상</span>
+        <input id="quadTLText" type="text" value="계획하기">
+        <input id="quadTLColor" type="color" value="#fde68a">
+      </div>
+      <div class="quad-field">
+        <span class="tag">우상</span>
+        <input id="quadTRText" type="text" value="바로 하기">
+        <input id="quadTRColor" type="color" value="#fca5a5">
+      </div>
+      <div class="quad-field">
+        <span class="tag">좌하</span>
+        <input id="quadBLText" type="text" value="제거하기">
+        <input id="quadBLColor" type="color" value="#d1d5db">
+      </div>
+      <div class="quad-field">
+        <span class="tag">우하</span>
+        <input id="quadBRText" type="text" value="위임하기">
+        <input id="quadBRColor" type="color" value="#93c5fd">
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>항목</h2>
+      <div class="add-item-row">
+        <input id="newItemText" type="text" placeholder="새 항목 입력 후 추가">
+        <input id="newItemColor" type="color" value="#4f46e5">
+        <button id="btnAddItem" class="primary">추가</button>
+      </div>
+      <ul id="itemList" class="item-list"></ul>
+      <div id="emptyHint" class="empty-hint">항목이 없습니다. 위에서 추가해 보세요.</div>
+    </div>
+  </div>
+
+  <div class="canvas-area">
+    <div class="canvas-wrap">
+      <div class="axis-top-label" id="axisXNameTop"></div>
+      <div class="matrix-outer">
+        <div class="lbl top" id="lblTop"></div>
+        <div class="lbl bottom" id="lblBottom"></div>
+        <div class="lbl left" id="lblLeft"></div>
+        <div class="lbl right" id="lblRight"></div>
+        <div id="plot">
+          <div class="quad-bg q-tl" id="bgTL"><span></span></div>
+          <div class="quad-bg q-tr" id="bgTR"><span></span></div>
+          <div class="quad-bg q-bl" id="bgBL"><span></span></div>
+          <div class="quad-bg q-br" id="bgBR"><span></span></div>
+          <div class="axis-line v"></div>
+          <div class="axis-line h"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>항목을 드래그해서 매트릭스 위에 자유롭게 배치하세요. 변경 사항은 브라우저에 자동 저장됩니다.</footer>
+
+<script>
+(function(){
+  const STORAGE_KEY = '2x2matrix-builder-state-v1';
+
+  const defaultState = {
+    title: '아이젠하워 매트릭스',
+    axisX: { name: '긴급도', left: '긴급하지 않음', right: '긴급함' },
+    axisY: { name: '중요도', top: '중요함', bottom: '중요하지 않음' },
+    quadrants: {
+      tl: { text: '계획하기', color: '#fde68a' },
+      tr: { text: '바로 하기', color: '#fca5a5' },
+      bl: { text: '제거하기', color: '#d1d5db' },
+      br: { text: '위임하기', color: '#93c5fd' }
+    },
+    items: [
+      { id: id(), text: '분기 보고서 작성', color: '#4f46e5', x: 68, y: 30 },
+      { id: id(), text: '동료 도와주기',   color: '#059669', x: 32, y: 28 },
+      { id: id(), text: 'SNS 확인',        color: '#9ca3af', x: 30, y: 72 },
+      { id: id(), text: '메일 회신',       color: '#f59e0b', x: 70, y: 74 }
+    ]
+  };
+
+  function id(){ return 'i' + Math.random().toString(36).slice(2, 10); }
+
+  let state = loadState();
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        if(parsed && parsed.axisX && parsed.axisY && parsed.quadrants && Array.isArray(parsed.items)){
+          return parsed;
+        }
+      }
+    }catch(e){ /* ignore corrupt storage */ }
+    return JSON.parse(JSON.stringify(defaultState));
+  }
+
+  function saveState(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch(e){ /* storage unavailable */ }
+  }
+
+  // --- DOM refs ---
+  const titleInput   = document.getElementById('titleInput');
+  const axisXName     = document.getElementById('axisXName');
+  const axisXLeft      = document.getElementById('axisXLeft');
+  const axisXRight     = document.getElementById('axisXRight');
+  const axisYName     = document.getElementById('axisYName');
+  const axisYTop        = document.getElementById('axisYTop');
+  const axisYBottom     = document.getElementById('axisYBottom');
+
+  const quadFields = {
+    tl: { text: document.getElementById('quadTLText'), color: document.getElementById('quadTLColor') },
+    tr: { text: document.getElementById('quadTRText'), color: document.getElementById('quadTRColor') },
+    bl: { text: document.getElementById('quadBLText'), color: document.getElementById('quadBLColor') },
+    br: { text: document.getElementById('quadBRText'), color: document.getElementById('quadBRColor') }
+  };
+
+  const axisXNameTop = document.getElementById('axisXNameTop');
+  const lblTop = document.getElementById('lblTop');
+  const lblBottom = document.getElementById('lblBottom');
+  const lblLeft = document.getElementById('lblLeft');
+  const lblRight = document.getElementById('lblRight');
+  const bgTL = document.querySelector('#bgTL span');
+  const bgTR = document.querySelector('#bgTR span');
+  const bgBL = document.querySelector('#bgBL span');
+  const bgBR = document.querySelector('#bgBR span');
+  const bgEls = {
+    tl: document.getElementById('bgTL'),
+    tr: document.getElementById('bgTR'),
+    bl: document.getElementById('bgBL'),
+    br: document.getElementById('bgBR')
+  };
+  const plot = document.getElementById('plot');
+  const itemListEl = document.getElementById('itemList');
+  const emptyHint = document.getElementById('emptyHint');
+  const newItemText = document.getElementById('newItemText');
+  const newItemColor = document.getElementById('newItemColor');
+
+  function render(){
+    titleInput.value = state.title;
+    document.title = state.title + ' · 2x2 매트릭스 빌더';
+
+    axisXName.value = state.axisX.name;
+    axisXLeft.value = state.axisX.left;
+    axisXRight.value = state.axisX.right;
+    axisYName.value = state.axisY.name;
+    axisYTop.value = state.axisY.top;
+    axisYBottom.value = state.axisY.bottom;
+
+    Object.keys(quadFields).forEach(function(k){
+      quadFields[k].text.value = state.quadrants[k].text;
+      quadFields[k].color.value = state.quadrants[k].color;
+    });
+
+    axisXNameTop.textContent = state.axisX.name;
+    lblTop.textContent = state.axisY.top;
+    lblBottom.textContent = state.axisY.bottom;
+    lblLeft.textContent = state.axisX.left;
+    lblRight.textContent = state.axisX.right;
+
+    bgTL.textContent = state.quadrants.tl.text;
+    bgTR.textContent = state.quadrants.tr.text;
+    bgBL.textContent = state.quadrants.bl.text;
+    bgBR.textContent = state.quadrants.br.text;
+    bgEls.tl.style.background = hexToRgba(state.quadrants.tl.color, 0.55);
+    bgEls.tr.style.background = hexToRgba(state.quadrants.tr.color, 0.55);
+    bgEls.bl.style.background = hexToRgba(state.quadrants.bl.color, 0.55);
+    bgEls.br.style.background = hexToRgba(state.quadrants.br.color, 0.55);
+
+    renderItems();
+  }
+
+  function hexToRgba(hex, alpha){
+    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
+    if(!m) return hex;
+    const r = parseInt(m[1],16), g = parseInt(m[2],16), b = parseInt(m[3],16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+  }
+
+  function renderItems(){
+    // sync plot markers
+    plot.querySelectorAll('.item').forEach(function(el){ el.remove(); });
+    state.items.forEach(function(item){
+      const el = document.createElement('div');
+      el.className = 'item';
+      el.style.left = item.x + '%';
+      el.style.top = item.y + '%';
+      el.style.background = item.color;
+      el.textContent = item.text;
+      el.dataset.id = item.id;
+      el.title = item.text;
+      attachDrag(el, item);
+      plot.appendChild(el);
+    });
+
+    // sync sidebar list
+    itemListEl.innerHTML = '';
+    emptyHint.style.display = state.items.length ? 'none' : 'block';
+    state.items.forEach(function(item){
+      const li = document.createElement('li');
+
+      const swatch = document.createElement('span');
+      swatch.className = 'swatch';
+      swatch.style.background = item.color;
+
+      const colorInput = document.createElement('input');
+      colorInput.type = 'color';
+      colorInput.value = item.color;
+      colorInput.style.width = '20px';
+      colorInput.style.height = '20px';
+      colorInput.style.border = 'none';
+      colorInput.style.borderRadius = '5px';
+      colorInput.style.padding = '0';
+      colorInput.style.flex = 'none';
+      colorInput.style.cursor = 'pointer';
+      colorInput.addEventListener('input', function(){
+        item.color = colorInput.value;
+        swatch.style.background = item.color;
+        const marker = plot.querySelector('.item[data-id="' + item.id + '"]');
+        if(marker) marker.style.background = item.color;
+        saveState();
+      });
+
+      const textInput = document.createElement('input');
+      textInput.type = 'text';
+      textInput.value = item.text;
+      textInput.addEventListener('input', function(){
+        item.text = textInput.value;
+        const marker = plot.querySelector('.item[data-id="' + item.id + '"]');
+        if(marker){ marker.textContent = item.text; marker.title = item.text; }
+        saveState();
+      });
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'del';
+      delBtn.innerHTML = '&times;';
+      delBtn.title = '삭제';
+      delBtn.addEventListener('click', function(){
+        state.items = state.items.filter(function(it){ return it.id !== item.id; });
+        renderItems();
+        saveState();
+      });
+
+      li.appendChild(swatch);
+      li.appendChild(textInput);
+      li.appendChild(colorInput);
+      li.appendChild(delBtn);
+      itemListEl.appendChild(li);
+    });
+  }
+
+  // --- Drag to reposition ---
+  function attachDrag(el, item){
+    let dragging = false;
+
+    function pointerToPercent(clientX, clientY){
+      const rect = plot.getBoundingClientRect();
+      let x = ((clientX - rect.left) / rect.width) * 100;
+      let y = ((clientY - rect.top) / rect.height) * 100;
+      x = Math.max(0, Math.min(100, x));
+      y = Math.max(0, Math.min(100, y));
+      return { x: x, y: y };
+    }
+
+    el.addEventListener('pointerdown', function(e){
+      dragging = true;
+      el.classList.add('dragging');
+      el.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+
+    el.addEventListener('pointermove', function(e){
+      if(!dragging) return;
+      const p = pointerToPercent(e.clientX, e.clientY);
+      item.x = Math.round(p.x * 10) / 10;
+      item.y = Math.round(p.y * 10) / 10;
+      el.style.left = item.x + '%';
+      el.style.top = item.y + '%';
+    });
+
+    function endDrag(e){
+      if(!dragging) return;
+      dragging = false;
+      el.classList.remove('dragging');
+      saveState();
+    }
+    el.addEventListener('pointerup', endDrag);
+    el.addEventListener('pointercancel', endDrag);
+  }
+
+  // --- Field bindings ---
+  function bindText(input, updater){
+    input.addEventListener('input', function(){
+      updater(input.value);
+      render();
+      saveState();
+    });
+  }
+
+  bindText(titleInput, function(v){ state.title = v; });
+  bindText(axisXName, function(v){ state.axisX.name = v; });
+  bindText(axisXLeft, function(v){ state.axisX.left = v; });
+  bindText(axisXRight, function(v){ state.axisX.right = v; });
+  bindText(axisYName, function(v){ state.axisY.name = v; });
+  bindText(axisYTop, function(v){ state.axisY.top = v; });
+  bindText(axisYBottom, function(v){ state.axisY.bottom = v; });
+
+  Object.keys(quadFields).forEach(function(k){
+    quadFields[k].text.addEventListener('input', function(){
+      state.quadrants[k].text = quadFields[k].text.value;
+      render(); saveState();
+    });
+    quadFields[k].color.addEventListener('input', function(){
+      state.quadrants[k].color = quadFields[k].color.value;
+      render(); saveState();
+    });
+  });
+
+  document.getElementById('btnAddItem').addEventListener('click', addItemFromForm);
+  newItemText.addEventListener('keydown', function(e){
+    if(e.key === 'Enter') addItemFromForm();
+  });
+
+  function addItemFromForm(){
+    const text = newItemText.value.trim();
+    if(!text) return;
+    state.items.push({
+      id: id(),
+      text: text,
+      color: newItemColor.value,
+      x: 50, y: 50
+    });
+    newItemText.value = '';
+    renderItems();
+    saveState();
+    newItemText.focus();
+  }
+
+  // --- Toolbar actions ---
+  document.getElementById('btnReset').addEventListener('click', function(){
+    if(!confirm('모든 내용을 초기 상태로 되돌릴까요? 이 작업은 되돌릴 수 없습니다.')) return;
+    state = JSON.parse(JSON.stringify(defaultState));
+    state.items = state.items.map(function(it){ return Object.assign({}, it, { id: id() }); });
+    render();
+    saveState();
+  });
+
+  document.getElementById('btnExportJson').addEventListener('click', function(){
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (state.title || 'matrix').replace(/[^\w\-가-힣 ]/g, '').trim() + '.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+
+  const importFile = document.getElementById('importFile');
+  document.getElementById('btnImportJson').addEventListener('click', function(){
+    importFile.click();
+  });
+  importFile.addEventListener('change', function(){
+    const file = importFile.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(){
+      try{
+        const parsed = JSON.parse(reader.result);
+        if(!parsed.axisX || !parsed.axisY || !parsed.quadrants || !Array.isArray(parsed.items)){
+          throw new Error('invalid');
+        }
+        parsed.items.forEach(function(it){ if(!it.id) it.id = id(); });
+        state = parsed;
+        render();
+        saveState();
+      }catch(e){
+        alert('올바른 매트릭스 JSON 파일이 아닙니다.');
+      }
+    };
+    reader.readAsText(file);
+    importFile.value = '';
+  });
+
+  document.getElementById('btnExportPng').addEventListener('click', exportPng);
+
+  // Rendered natively on a <canvas> (no DOM/SVG serialization) so it works
+  // offline over file:// and isn't subject to Chrome's foreignObject
+  // "tainted canvas" restriction.
+  function wrapText(ctx, text, maxWidth){
+    const words = String(text).split(/\s+/).filter(Boolean);
+    const lines = [];
+    let line = '';
+    words.forEach(function(word){
+      const test = line ? line + ' ' + word : word;
+      if(ctx.measureText(test).width > maxWidth && line){
+        lines.push(line);
+        line = word;
+      }else{
+        line = test;
+      }
+    });
+    if(line) lines.push(line);
+    return lines.length ? lines : [''];
+  }
+
+  function truncateToWidth(ctx, text, maxWidth){
+    if(ctx.measureText(text).width <= maxWidth) return text;
+    let t = text;
+    while(t.length > 1 && ctx.measureText(t + '…').width > maxWidth){
+      t = t.slice(0, -1);
+    }
+    return t + '…';
+  }
+
+  function roundRectPath(ctx, x, y, w, h, r){
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+
+  function renderMatrixToCanvas(){
+    const scale = 2;
+    const W = 900;
+    const plotSize = 640;
+    const labelColW = 34, labelGap = 6;
+    const plotX = (W - (labelColW * 2 + labelGap * 2 + plotSize)) / 2 + labelColW + labelGap;
+    const titleTop = 30, titleH = 54, axisNameH = 30, topLabelH = 26, bottomLabelH = 40, bottomMargin = 20;
+    const plotY = titleTop + titleH + axisNameH + topLabelH;
+    const H = plotY + plotSize + bottomLabelH + bottomMargin;
+    let cursorY = titleTop;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = W * scale;
+    canvas.height = H * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+    ctx.textBaseline = 'alphabetic';
+
+    // Title
+    ctx.fillStyle = '#1f2430';
+    ctx.font = '700 26px -apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(truncateToWidth(ctx, state.title || '', W - 60), W / 2, cursorY + 20);
+    cursorY += 54;
+
+    // X axis name (top, centered over plot)
+    ctx.font = '600 13px -apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif';
+    ctx.fillStyle = '#6b7280';
+    ctx.fillText(state.axisX.name || '', plotX + plotSize / 2, cursorY + 12);
+    cursorY += 30;
+
+    // Top Y label
+    ctx.font = '600 14px -apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif';
+    ctx.fillStyle = '#1f2430';
+    ctx.fillText(state.axisY.top || '', plotX + plotSize / 2, cursorY + 14);
+
+    // Left / right axis labels (vertical, centered on plot)
+    ctx.save();
+    ctx.font = '600 13px -apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif';
+    ctx.fillStyle = '#1f2430';
+    ctx.textAlign = 'center';
+    ctx.translate(plotX - labelGap - labelColW / 2, plotY + plotSize / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(state.axisX.left || '', 0, 4);
+    ctx.restore();
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.translate(plotX + plotSize + labelGap + labelColW / 2, plotY + plotSize / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.fillText(state.axisX.right || '', 0, 4);
+    ctx.restore();
+
+    // Plot background + border
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(plotX, plotY, plotSize, plotSize);
+
+    // Quadrant fills
+    const half = plotSize / 2;
+    const quadRects = {
+      tl: { x: plotX, y: plotY, align: 'left', vAlign: 'top' },
+      tr: { x: plotX + half, y: plotY, align: 'right', vAlign: 'top' },
+      bl: { x: plotX, y: plotY + half, align: 'left', vAlign: 'bottom' },
+      br: { x: plotX + half, y: plotY + half, align: 'right', vAlign: 'bottom' }
+    };
+    Object.keys(quadRects).forEach(function(k){
+      const q = quadRects[k];
+      ctx.fillStyle = hexToRgba(state.quadrants[k].color, 0.55);
+      ctx.fillRect(q.x, q.y, half, half);
+    });
+
+    // Border + cross axis lines
+    ctx.strokeStyle = '#cfd3dc';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(plotX, plotY, plotSize, plotSize);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(plotX + half, plotY);
+    ctx.lineTo(plotX + half, plotY + plotSize);
+    ctx.moveTo(plotX, plotY + half);
+    ctx.lineTo(plotX + plotSize, plotY + half);
+    ctx.stroke();
+
+    // Quadrant labels
+    ctx.font = '600 12px -apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif';
+    ctx.fillStyle = 'rgba(0,0,0,.55)';
+    const pad = 12, lineHeight = 16, maxTextW = half - pad * 2;
+    Object.keys(quadRects).forEach(function(k){
+      const q = quadRects[k];
+      const lines = wrapText(ctx, state.quadrants[k].text || '', maxTextW);
+      ctx.textAlign = q.align === 'left' ? 'left' : 'right';
+      const tx = q.align === 'left' ? q.x + pad : q.x + half - pad;
+      if(q.vAlign === 'top'){
+        lines.forEach(function(line, i){
+          ctx.fillText(line, tx, q.y + pad + (i + 1) * lineHeight - 4);
+        });
+      }else{
+        const startY = q.y + half - pad - (lines.length - 1) * lineHeight;
+        lines.forEach(function(line, i){
+          ctx.fillText(line, tx, startY + i * lineHeight);
+        });
+      }
+    });
+
+    // Items
+    ctx.font = '700 12px -apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif';
+    const maxPillTextW = 120;
+    state.items.forEach(function(item){
+      const cx = plotX + (item.x / 100) * plotSize;
+      const cy = plotY + (item.y / 100) * plotSize;
+      const label = truncateToWidth(ctx, item.text || '', maxPillTextW);
+      const textW = ctx.measureText(label).width;
+      const pillW = textW + 20;
+      const pillH = 24;
+      ctx.fillStyle = item.color;
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,.25)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetY = 2;
+      roundRectPath(ctx, cx - pillW / 2, cy - pillH / 2, pillW, pillH, pillH / 2);
+      ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, cx, cy + 4);
+    });
+
+    ctx.font = '600 14px -apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif';
+    ctx.fillStyle = '#1f2430';
+    ctx.textAlign = 'center';
+    ctx.fillText(state.axisY.bottom || '', plotX + plotSize / 2, plotY + plotSize + 24);
+
+    return canvas;
+  }
+
+  function exportPng(){
+    const canvas = renderMatrixToCanvas();
+    canvas.toBlob(function(blob){
+      if(!blob){
+        alert('이미지 생성에 실패했습니다. 브라우저에서 다시 시도해 주세요.');
+        return;
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (state.title || 'matrix').replace(/[^\w\-가-힣 ]/g, '').trim() + '.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
