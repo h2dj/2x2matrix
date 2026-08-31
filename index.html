@@ -187,6 +187,43 @@
     width:30px;height:30px;border:none;border-radius:6px;padding:0;background:none;cursor:pointer;flex:none;
   }
 
+  .sort-toolbar{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    flex-wrap:wrap;
+    margin-top:10px;
+  }
+  .sort-toolbar .sort-label{
+    font-size:11px;
+    color:var(--muted);
+    flex:none;
+  }
+  .sort-btn{
+    font-size:11px;
+    padding:4px 8px;
+    line-height:1.4;
+    border:1px solid var(--border);
+    border-radius:6px;
+    background:var(--bg);
+    color:var(--text);
+  }
+  .sort-btn:hover{background:#fff;border-color:#c7cad3;}
+  .sort-btn.active{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#fff;
+  }
+  .sort-btn.export-btn{
+    margin-left:auto;
+    color:var(--muted);
+  }
+  .sort-btn.export-btn:hover{
+    color:var(--accent);
+    border-color:var(--accent);
+    background:#fff;
+  }
+
   .item-list{
     list-style:none;
     margin:12px 0 0;
@@ -431,6 +468,12 @@
         <input id="newItemText" type="text" placeholder="새 항목 입력 후 추가">
         <input id="newItemColor" type="color" value="#4f46e5">
         <button id="btnAddItem" class="primary">추가</button>
+      </div>
+      <div class="sort-toolbar">
+        <span class="sort-label">정렬:</span>
+        <button id="sortByX" type="button" class="sort-btn"></button>
+        <button id="sortByY" type="button" class="sort-btn"></button>
+        <button id="btnExportItemsCsv" type="button" class="sort-btn export-btn" title="현재 정렬 순서로 항목을 CSV로 내보내기">⬇ 내보내기</button>
       </div>
       <ul id="itemList" class="item-list"></ul>
       <div id="emptyHint" class="empty-hint">항목이 없습니다. 위에서 추가해 보세요.</div>
@@ -769,6 +812,95 @@
   const newItemText = document.getElementById('newItemText');
   const newItemColor = document.getElementById('newItemColor');
   const templateSelect = document.getElementById('templateSelect');
+  const sortByXBtn = document.getElementById('sortByX');
+  const sortByYBtn = document.getElementById('sortByY');
+  const btnExportItemsCsv = document.getElementById('btnExportItemsCsv');
+
+  // Sort state for the sidebar item list only — the matrix plot itself is
+  // never reordered by this.
+  let sortAxis = null; // null | 'x' | 'y'
+  let sortDir = 'asc';  // 'asc' | 'desc'
+
+  function updateSortButtons(){
+    const arrow = sortDir === 'asc' ? '▲' : '▼';
+    sortByXBtn.textContent = state.axisX.name + ' ' + (sortAxis === 'x' ? arrow : '⇅');
+    sortByYBtn.textContent = state.axisY.name + ' ' + (sortAxis === 'y' ? arrow : '⇅');
+    sortByXBtn.classList.toggle('active', sortAxis === 'x');
+    sortByYBtn.classList.toggle('active', sortAxis === 'y');
+    sortByXBtn.title = '오름차순: ' + state.axisX.left + ' → ' + state.axisX.right + ' (클릭해서 정렬 · 다시 클릭하면 방향 전환)';
+    sortByYBtn.title = '오름차순: ' + state.axisY.top + ' → ' + state.axisY.bottom + ' (클릭해서 정렬 · 다시 클릭하면 방향 전환)';
+  }
+
+  function handleSortClick(axis){
+    if(sortAxis === axis){
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    }else{
+      sortAxis = axis;
+      sortDir = 'asc';
+    }
+    updateSortButtons();
+    renderItemList();
+  }
+
+  sortByXBtn.addEventListener('click', function(){ handleSortClick('x'); });
+  sortByYBtn.addEventListener('click', function(){ handleSortClick('y'); });
+
+  function getSortedItems(){
+    const arr = state.items.slice();
+    if(!sortAxis) return arr;
+    arr.sort(function(a, b){
+      const diff = a[sortAxis] - b[sortAxis];
+      return sortDir === 'asc' ? diff : -diff;
+    });
+    return arr;
+  }
+
+  function quadrantKeyForItem(item){
+    const left = item.x < 50;
+    const top = item.y < 50;
+    if(left && top) return 'tl';
+    if(!left && top) return 'tr';
+    if(left && !top) return 'bl';
+    return 'br';
+  }
+
+  function csvEscape(value){
+    const s = String(value == null ? '' : value);
+    if(/[",\n\r]/.test(s)){ return '"' + s.replace(/"/g, '""') + '"'; }
+    return s;
+  }
+
+  function exportItemsCsv(){
+    if(!state.items.length){
+      alert('내보낼 항목이 없습니다.');
+      return;
+    }
+    const headers = ['순번', '항목', state.axisX.name + '(%)', state.axisY.name + '(%)', '사분면'];
+    const lines = [headers.map(csvEscape).join(',')];
+    getSortedItems().forEach(function(item, idx){
+      const quadKey = quadrantKeyForItem(item);
+      const quadText = state.quadrants[quadKey] ? state.quadrants[quadKey].text : '';
+      lines.push([
+        idx + 1,
+        item.text,
+        Math.round(item.x * 10) / 10,
+        Math.round(item.y * 10) / 10,
+        quadText
+      ].map(csvEscape).join(','));
+    });
+    // Leading BOM so Excel opens the Korean text as UTF-8 instead of mojibake.
+    const csv = '\uFEFF' + lines.join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const sortSuffix = sortAxis ? ('-' + (sortAxis === 'x' ? state.axisX.name : state.axisY.name) + (sortDir === 'asc' ? '오름차순' : '내림차순')) : '';
+    a.download = (state.title || 'matrix').replace(/[^\w\-가-힣 ]/g, '').trim() + '-항목' + sortSuffix.replace(/[^\w\-가-힣 ]/g, '') + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  btnExportItemsCsv.addEventListener('click', exportItemsCsv);
 
   (function populateTemplateSelect(){
     const groups = {};
@@ -834,6 +966,7 @@
     bgEls.bl.style.background = hexToRgba(state.quadrants.bl.color, 0.55);
     bgEls.br.style.background = hexToRgba(state.quadrants.br.color, 0.55);
 
+    updateSortButtons();
     renderItems();
   }
 
@@ -845,7 +978,11 @@
   }
 
   function renderItems(){
-    // sync plot markers
+    renderPlotMarkers();
+    renderItemList();
+  }
+
+  function renderPlotMarkers(){
     plot.querySelectorAll('.item').forEach(function(el){ el.remove(); });
     state.items.forEach(function(item){
       const el = document.createElement('div');
@@ -859,11 +996,12 @@
       attachDrag(el, item);
       plot.appendChild(el);
     });
+  }
 
-    // sync sidebar list
+  function renderItemList(){
     itemListEl.innerHTML = '';
     emptyHint.style.display = state.items.length ? 'none' : 'block';
-    state.items.forEach(function(item){
+    getSortedItems().forEach(function(item){
       const li = document.createElement('li');
 
       const swatch = document.createElement('span');
@@ -949,6 +1087,7 @@
       if(!dragging) return;
       dragging = false;
       el.classList.remove('dragging');
+      if(sortAxis) renderItemList(); // dragging may have changed sort order
       saveState();
     }
     el.addEventListener('pointerup', endDrag);
