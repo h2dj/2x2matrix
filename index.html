@@ -378,6 +378,25 @@
     outline-offset:2px;
     z-index:8;
   }
+  .item.editing{
+    max-width:none;
+    cursor:text;
+    z-index:12;
+  }
+  .item-edit-input{
+    border:none;
+    outline:none;
+    background:rgba(0,0,0,.2);
+    color:#fff;
+    font:inherit;
+    font-size:12px;
+    font-weight:600;
+    width:110px;
+    max-width:calc(50vw - 40px);
+    text-align:center;
+    border-radius:10px;
+    padding:0 2px;
+  }
 
   footer{
     text-align:center;
@@ -521,7 +540,7 @@
   </div>
 </div>
 
-<footer>항목을 드래그해서 매트릭스 위에 자유롭게 배치하세요. 항목을 클릭해 선택한 뒤 <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>D</kbd>로 복제하거나, <kbd>Insert</kbd>(맥 키보드는 <kbd>Tab</kbd>)로 같은 사분면에 같은 색의 항목을 추가할 수 있습니다. 변경 사항은 브라우저에 자동 저장됩니다.</footer>
+<footer>항목을 드래그해서 매트릭스 위에 자유롭게 배치하세요. 항목을 클릭해 선택한 뒤 <kbd>F2</kbd>로 이름을 바로 수정하거나, <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>D</kbd>로 복제하거나, <kbd>Insert</kbd>(맥 키보드는 <kbd>Tab</kbd>)로 같은 사분면에 같은 색의 항목을 추가할 수 있습니다. 변경 사항은 브라우저에 자동 저장됩니다.</footer>
 
 <script>
 (function(){
@@ -966,6 +985,47 @@
     saveState();
   }
 
+  // F2: rename the selected item in place, right on its plot marker.
+  function enterEditMode(itemId){
+    const item = state.items.find(function(it){ return it.id === itemId; });
+    const el = plot.querySelector('.item[data-id="' + itemId + '"]');
+    if(!item || !el || el.querySelector('input')) return;
+
+    el.classList.add('editing');
+    el.textContent = '';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'item-edit-input';
+    input.value = item.text;
+    el.appendChild(input);
+    input.focus();
+    input.select();
+
+    let done = false;
+    function finish(commit){
+      if(done) return;
+      done = true;
+      if(commit){
+        const newText = input.value.trim();
+        if(newText) item.text = newText;
+      }
+      el.classList.remove('editing');
+      renderPlotMarkers();
+      renderItemList();
+      saveState();
+    }
+
+    // Keep the item's own drag/select pointerdown handler from firing while
+    // interacting with the input (placing the caret, selecting text).
+    input.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+    input.addEventListener('keydown', function(e){
+      e.stopPropagation(); // don't let F2/Ctrl+D/Insert/Tab fire while typing
+      if(e.key === 'Enter'){ e.preventDefault(); finish(true); }
+      else if(e.key === 'Escape'){ e.preventDefault(); finish(false); }
+    });
+    input.addEventListener('blur', function(){ finish(true); });
+  }
+
   document.addEventListener('keydown', function(e){
     if(isFormFocused() || !selectedItemId) return;
 
@@ -979,6 +1039,12 @@
     if(e.key === 'Insert' || isPlainTab){
       e.preventDefault();
       addAdjacentItem();
+      return;
+    }
+
+    if(e.key === 'F2'){
+      e.preventDefault();
+      enterEditMode(selectedItemId);
       return;
     }
 
