@@ -242,6 +242,10 @@
     border-radius:7px;
     padding:6px 8px;
   }
+  .item-list li.selected{
+    border-color:var(--accent);
+    background:#eef0ff;
+  }
   .item-list .swatch{
     width:12px;height:12px;border-radius:50%;flex:none;
   }
@@ -346,6 +350,7 @@
   .axis-line{
     position:absolute;
     background:#cfd3dc;
+    pointer-events:none;
   }
   .axis-line.v{left:50%;top:0;bottom:0;width:1px;margin-left:-.5px;}
   .axis-line.h{top:50%;left:0;right:0;height:1px;margin-top:-.5px;}
@@ -368,12 +373,27 @@
   }
   .item:active{cursor:grabbing;z-index:10;}
   .item.dragging{opacity:.85;box-shadow:0 4px 14px rgba(0,0,0,.28);}
+  .item.selected{
+    outline:3px solid var(--accent);
+    outline-offset:2px;
+    z-index:8;
+  }
 
   footer{
     text-align:center;
     color:var(--muted);
     font-size:12px;
     padding:20px;
+  }
+  footer kbd{
+    font-family:inherit;
+    font-size:11px;
+    border:1px solid var(--border);
+    border-bottom-width:2px;
+    border-radius:4px;
+    padding:1px 5px;
+    background:var(--panel);
+    color:var(--text);
   }
 
   .visually-hidden{
@@ -501,7 +521,7 @@
   </div>
 </div>
 
-<footer>항목을 드래그해서 매트릭스 위에 자유롭게 배치하세요. 변경 사항은 브라우저에 자동 저장됩니다.</footer>
+<footer>항목을 드래그해서 매트릭스 위에 자유롭게 배치하세요. 항목을 클릭해 선택한 뒤 <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>D</kbd>로 복제하거나, <kbd>Insert</kbd>(맥 키보드는 <kbd>Tab</kbd>)로 같은 사분면에 같은 색의 항목을 추가할 수 있습니다. 변경 사항은 브라우저에 자동 저장됩니다.</footer>
 
 <script>
 (function(){
@@ -807,6 +827,9 @@
     br: document.getElementById('bgBR')
   };
   const plot = document.getElementById('plot');
+  plot.addEventListener('pointerdown', function(e){
+    if(e.target === plot) clearSelection(); // clicked empty matrix background
+  });
   const itemListEl = document.getElementById('itemList');
   const emptyHint = document.getElementById('emptyHint');
   const newItemText = document.getElementById('newItemText');
@@ -863,6 +886,106 @@
     if(left && !top) return 'bl';
     return 'br';
   }
+
+  function quadrantBounds(key){
+    const bounds = {
+      tl: { xMin: 0, xMax: 50, yMin: 0, yMax: 50 },
+      tr: { xMin: 50, xMax: 100, yMin: 0, yMax: 50 },
+      bl: { xMin: 0, xMax: 50, yMin: 50, yMax: 100 },
+      br: { xMin: 50, xMax: 100, yMin: 50, yMax: 100 }
+    };
+    return bounds[key] || bounds.tl;
+  }
+
+  function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+
+  // --- Selection (click an item on the plot or its sidebar row) ---
+  let selectedItemId = null;
+
+  function selectItem(itemId){
+    selectedItemId = itemId;
+    updateSelectionVisuals();
+  }
+
+  function clearSelection(){
+    if(!selectedItemId) return;
+    selectedItemId = null;
+    updateSelectionVisuals();
+  }
+
+  function updateSelectionVisuals(){
+    plot.querySelectorAll('.item').forEach(function(el){
+      el.classList.toggle('selected', el.dataset.id === selectedItemId);
+    });
+    itemListEl.querySelectorAll('li').forEach(function(li){
+      li.classList.toggle('selected', li.dataset.id === selectedItemId);
+    });
+  }
+
+  function isFormFocused(){
+    const el = document.activeElement;
+    if(!el) return false;
+    const tag = el.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' || !!el.isContentEditable;
+  }
+
+  // Ctrl/Cmd+D: duplicate the selected item (same text/color) just offset
+  // from the original.
+  function duplicateSelectedItem(){
+    const original = state.items.find(function(it){ return it.id === selectedItemId; });
+    if(!original) return;
+    const clone = {
+      id: id(),
+      text: original.text,
+      color: original.color,
+      x: clamp(original.x + 4, 0, 100),
+      y: clamp(original.y + 4, 0, 100)
+    };
+    state.items.push(clone);
+    selectedItemId = clone.id;
+    renderItems();
+    saveState();
+  }
+
+  // Insert (Tab on a Mac keyboard, which has no Insert key): add a new item
+  // in the same quadrant as the selected one, with the same color.
+  function addAdjacentItem(){
+    const original = state.items.find(function(it){ return it.id === selectedItemId; });
+    if(!original) return;
+    const bounds = quadrantBounds(quadrantKeyForItem(original));
+    let nx = original.x + 6;
+    let ny = original.y + 6;
+    if(nx > bounds.xMax - 2) nx = bounds.xMin + 2;
+    if(ny > bounds.yMax - 2) ny = bounds.yMin + 2;
+    nx = clamp(nx, bounds.xMin + 2, bounds.xMax - 2);
+    ny = clamp(ny, bounds.yMin + 2, bounds.yMax - 2);
+    const newItem = { id: id(), text: '새 항목', color: original.color, x: nx, y: ny };
+    state.items.push(newItem);
+    selectedItemId = newItem.id;
+    renderItems();
+    saveState();
+  }
+
+  document.addEventListener('keydown', function(e){
+    if(isFormFocused() || !selectedItemId) return;
+
+    if((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'd' || e.key === 'D')){
+      e.preventDefault();
+      duplicateSelectedItem();
+      return;
+    }
+
+    const isPlainTab = e.key === 'Tab' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey;
+    if(e.key === 'Insert' || isPlainTab){
+      e.preventDefault();
+      addAdjacentItem();
+      return;
+    }
+
+    if(e.key === 'Escape'){
+      clearSelection();
+    }
+  });
 
   function csvEscape(value){
     const s = String(value == null ? '' : value);
@@ -931,6 +1054,7 @@
       return;
     }
     state = materializeTemplate(tpl);
+    selectedItemId = null;
     render();
     saveState();
   });
@@ -996,6 +1120,7 @@
       attachDrag(el, item);
       plot.appendChild(el);
     });
+    updateSelectionVisuals();
   }
 
   function renderItemList(){
@@ -1003,6 +1128,8 @@
     emptyHint.style.display = state.items.length ? 'none' : 'block';
     getSortedItems().forEach(function(item){
       const li = document.createElement('li');
+      li.dataset.id = item.id;
+      li.addEventListener('click', function(){ selectItem(item.id); });
 
       const swatch = document.createElement('span');
       swatch.className = 'swatch';
@@ -1040,8 +1167,10 @@
       delBtn.className = 'del';
       delBtn.innerHTML = '&times;';
       delBtn.title = '삭제';
-      delBtn.addEventListener('click', function(){
+      delBtn.addEventListener('click', function(e){
+        e.stopPropagation();
         state.items = state.items.filter(function(it){ return it.id !== item.id; });
+        if(selectedItemId === item.id) selectedItemId = null;
         renderItems();
         saveState();
       });
@@ -1052,6 +1181,7 @@
       li.appendChild(delBtn);
       itemListEl.appendChild(li);
     });
+    updateSelectionVisuals();
   }
 
   // --- Drag to reposition ---
@@ -1068,6 +1198,13 @@
     }
 
     el.addEventListener('pointerdown', function(e){
+      // Selecting here (rather than only on a "real" click) also arms
+      // Ctrl/Cmd+D and Insert/Tab for this item immediately, even after a
+      // drag. preventDefault() below stops the browser from blurring the
+      // active element on its own, so do it ourselves or the keyboard
+      // shortcuts stay swallowed by whatever input/button had focus.
+      selectItem(item.id);
+      if(isFormFocused()) document.activeElement.blur();
       dragging = true;
       el.classList.add('dragging');
       el.setPointerCapture(e.pointerId);
@@ -1146,6 +1283,7 @@
   document.getElementById('btnReset').addEventListener('click', function(){
     if(!confirm('모든 내용을 초기 상태(아이젠하워 매트릭스)로 되돌릴까요? 이 작업은 되돌릴 수 없습니다.')) return;
     state = materializeTemplate(TEMPLATES[0]);
+    selectedItemId = null;
     templateSelect.value = TEMPLATES[0].key;
     render();
     saveState();
@@ -1177,6 +1315,7 @@
         }
         parsed.items.forEach(function(it){ if(!it.id) it.id = id(); });
         state = parsed;
+        selectedItemId = null;
         templateSelect.value = '';
         render();
         saveState();
